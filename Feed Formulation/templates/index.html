@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Least-Cost Feed Formulation</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+        }
+        h1 {
+            color: #333;
+        }
+        form {
+            margin-bottom: 20px;
+        }
+        label {
+            display: block;
+            margin: 10px 0 5px;
+        }
+        select, button {
+            margin-bottom: 15px;
+            width: 300px;
+        }
+        #results {
+            white-space: pre-wrap;
+            background: #f9f9f9;
+            padding: 10px;
+            border: 1px solid #ccc;
+        }
+    </style>
+</head>
+<body>
+    <h1>Least-Cost Feed Formulation</h1>
+    <form id="formulationForm">
+        <label for="pig_class">Select Pig Class:</label>
+        <select id="pig_class" name="pig_class">
+            <option value="Pig_Starter_6_12_weeks">Pig Starter 6-12 Weeks</option>
+            <option value="Pig_Grower_13_24_weeks">Pig Grower 13-24 Weeks</option>
+            <option value="Pig_Finisher_25_weeks_market">Pig Finisher 25 Weeks Market</option>
+            <option value="Pig_Breeder_Gestation_Lactation">Pig Breeder Gestation Lactation</option>
+            <option value="Pig_Replacement_Gilt_Boar_8_12_months">Pig Replacement Gilt Boar 8-12 Months</option>
+        </select>
+
+        <label for="energy_sources">Energy Sources (Select at least 2 or skip):</label>
+        <select id="energy_sources" name="energy_sources" multiple>
+        {% for option in ingredient_options.energy_sources %}
+            <option value="{{ option }}">{{ option }}</option>
+        {% endfor %}
+        </select>
+        <button type="button" onclick="skipCategory('energy_sources')">Skip</button>
+
+        <label for="energy_replacers">Energy Replacers (Select at least 2 or skip):</label>
+        <select id="energy_replacers" name="energy_replacers" multiple>
+        {% for option in ingredient_options.energy_replacers %}
+            <option value="{{ option }}">{{ option }}</option>
+        {% endfor %}
+        </select>
+        <button type="button" onclick="skipCategory('energy_replacers')">Skip</button>
+
+        <label for="high_protein_sources">High Protein Sources (Select at least 2 or skip):</label>
+        <select id="high_protein_sources" name="high_protein_sources" multiple>
+        {% for option in ingredient_options.high_protein_sources %}
+            <option value="{{ option }}">{{ option }}</option>
+        {% endfor %}
+        </select>
+        <button type="button" onclick="skipCategory('high_protein_sources')">Skip</button>
+
+        <label for="medium_protein_sources">Medium Protein Sources (Select at least 2 or skip):</label>
+        <select id="medium_protein_sources" name="medium_protein_sources" multiple>
+        {% for option in ingredient_options.medium_protein_sources %}
+            <option value="{{ option }}">{{ option }}</option>
+        {% endfor %}
+        </select>
+        <button type="button" onclick="skipCategory('medium_protein_sources')">Skip</button>
+
+        <label for="protein_replacers">Protein Replacers (Select at least 2 or skip):</label>
+        <select id="protein_replacers" name="protein_replacers" multiple>
+        {% for option in ingredient_options.protein_replacers %}
+            <option value="{{ option }}">{{ option }}</option>
+        {% endfor %}
+        </select>
+        <button type="button" onclick="skipCategory('protein_replacers')">Skip</button>
+
+        <button type="button" onclick="submitForm()">Submit</button>
+    </form>
+
+    <script>
+        function skipCategory(categoryId) {
+            const category = document.getElementById(categoryId);
+            if (!category) {
+                alert(`Category ${categoryId} not found.`);
+                return;
+            }
+
+            for (const option of category.options) {
+                option.selected = false;
+            }
+
+            category.setAttribute("data-skipped", "true");
+            alert(`${categoryId.replace('_', ' ')} category skipped.`);
+        }
+
+        async function submitForm() {
+            const form = document.getElementById('formulationForm');
+            const formData = new FormData(form);
+
+            const data = {
+                pig_class: formData.get('pig_class'),
+                energy_sources: document.getElementById('energy_sources').getAttribute('data-skipped') === 'true'
+                    ? [] : Array.from(formData.getAll('energy_sources')),
+                energy_replacers: document.getElementById('energy_replacers').getAttribute('data-skipped') === 'true'
+                    ? [] : Array.from(formData.getAll('energy_replacers')),
+                high_protein_sources: document.getElementById('high_protein_sources').getAttribute('data-skipped') === 'true'
+                    ? [] : Array.from(formData.getAll('high_protein_sources')),
+                medium_protein_sources: document.getElementById('medium_protein_sources').getAttribute('data-skipped') === 'true'
+                    ? [] : Array.from(formData.getAll('medium_protein_sources')),
+                protein_replacers: document.getElementById('protein_replacers').getAttribute('data-skipped') === 'true'
+                    ? [] : Array.from(formData.getAll('protein_replacers')),
+            };
+
+            try {
+                const response = await fetch('/formulate', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(data),
+                });
+
+                if (!response.ok) {
+                    throw new Error('Server error. Please try again later.');
+                }
+
+                const results = await response.json();
+                console.log("Backend Response:", results); // Log the response for debugging
+
+                if (results.error) {
+                    document.getElementById('results').innerText = `Error: ${results.error}`;
+                } else if (results.formulations) {
+                    console.log("Formulations:", results.formulations); // Log formulations
+                    const formulations = results.formulations;
+
+                    let output = `<h3>All Formulations:</h3>`;
+                    formulations.forEach((formulation, index) => {
+                        output += `<h4>Option ${index + 1}:</h4>`;
+                        output += `<pre>${JSON.stringify(formulation, null, 2)}</pre>`;
+                    });
+
+                    document.getElementById('results').innerHTML = output;
+                } else {
+                    document.getElementById('results').innerText = "No formulations returned.";
+                }
+            } catch (error) {
+                document.getElementById('results').textContent = `Error: ${error.message}`;
+            }
+        }
+    </script>
+
+    <h2>Results:</h2>
+    <div id="results"></div>
+</body>
+</html>
